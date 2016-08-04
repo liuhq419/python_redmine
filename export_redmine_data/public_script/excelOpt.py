@@ -32,7 +32,7 @@ def setExcelStyle():
     style1.alignment=alignment
     style1.borders=borders
 
-    #font2为 宋体 加粗 11号
+    #font2为 宋体 加粗 10号
     font2 = xlwt.Font()
     font2.name = '宋体'
     font2.bold = True
@@ -42,7 +42,7 @@ def setExcelStyle():
     style2.alignment=alignment
     style2.borders=borders
 
-    #font3为 宋体  11号
+    #font3为 宋体  10号
     font3 = xlwt.Font()
     font3.name = '宋体'
     font3.bold = False
@@ -63,6 +63,7 @@ def setExcelStyle():
 style1, style2, style3,style4 = setExcelStyle()
 #行高
 tall_style=xlwt.easyxf('font:height 280;')  #普通行行高
+fir_tall_style=xlwt.easyxf('font:height 400;')  #普通行行高
 
 
 '''write_merge(x, x + m, y, y + n, string, sytle)
@@ -72,9 +73,9 @@ style表示单元格样式。其中，x，y，m，n，都是以0开始计算的�
 '''建立excel，存储查询结果'''
 '''该函数在insertIntoExcel()插入数据函数中调用，name,filePath,lists在insertExcel()中获得'''
 def createExcel(date,PATH,lists,depart='',str= 'PM系统工时填报'):
-    # 新建xls，新建名为sheet1的工作簿
+    # 新建xlsx，新建名为sheet1的工作簿
     file=xlwt.Workbook()  #encoding='ascii'
-    timeSheet=file.add_sheet('Sheet1',cell_overwrite_ok=True)  #添加人员维度的工作簿
+    timeSheet=file.add_sheet('timeLog',cell_overwrite_ok=True)  #添加人员维度的工作簿
 
     timeSheet.row(0).set_style(tall_style)  #设置行高
     for i in range(0,len(lists)):
@@ -122,3 +123,127 @@ def insertIntoExcel(content,PATH,date,depart='',str= 'PM系统工时填报'):
         newSheet.row(r).set_style(tall_style)
         newSheet.write(r,col,content[col],style4)
     newExcel.save(excelName)
+
+
+def missingPerson(PATH,excelNames,newdeparts,staffExcel='格网各部门人员清单.xls'):
+    staffxls=PATH+'\\public_script\\'+staffExcel
+    for depart in newdeparts:
+        staffXls=xlrd.open_workbook(staffxls)
+        staffSht=staffXls.sheet_by_name(depart)
+        totalStaff=staffSht.col_values(0,start_rowx=1)
+        missingStaff=[]
+        for xlsName in excelNames:
+            if depart in xlsName:
+                timeXls=xlrd.open_workbook(xlsName,formatting_info=True)
+                newTimeXLs=copy(timeXls)
+                timeSht=timeXls.sheet_by_index(1)
+                sheet1=timeXls.sheet_by_index(2)
+                newTimeSht1=newTimeXLs.get_sheet(1)
+                newsheet1=newTimeXLs.get_sheet(2)
+                wroteStaff=timeSht.col_values(0,0,sheet1.nrows+1)
+                wroteStaff = str(wroteStaff)
+                wroteStaff = wroteStaff.replace('[', '')
+                wroteStaff = wroteStaff.replace(']', '')
+                wroteStaff = wroteStaff.replace("'", '')
+                wroteStaff = wroteStaff.replace(" ", '')
+                # print('wroteStaff:',wroteStaff)
+                # print('totalStaff:',totalStaff)
+                for total in totalStaff:
+                    total=str(total).replace(' ','')
+                    if total not in wroteStaff:
+                        missingStaff.append(total)
+                        miss=['本月填报缺失人员:']+missingStaff
+                        miss=str(miss)
+                        miss=miss.replace('[','')
+                        miss=miss.replace(']','')
+                        miss=miss.replace("'",'')
+                        # newTimeSht.write(1,0,miss)
+                        newTimeSht1.write(1,0,miss,style4)
+                for i in range(0,sheet1.nrows):
+                    for j in range(0,sheet1.ncols):
+                        newsheet1.write(i,j,'')
+                newTimeXLs.save(xlsName)
+            else:continue
+# missingPerson()
+
+import pandas as pd
+import numpy as np
+
+# 读取excel表格中的数据，并进行相应的处理，本例是添加透视表
+def readExcel(excelNames,PATH,newdeparts):
+    # xlsNames = []
+    for excelName in excelNames:
+        excel_df = pd.ExcelFile(excelName)#,engine='xlsxwriter')  # 获得excel
+        sheet_df = excel_df.parse('timeLog')  # 获得excel的工作簿   #返回dataFrame
+        sheet_df = sheet_df.fillna('-')  # 空值处理，将空值用''填充
+        try:
+            # 对数据表进行添加透视表
+            sheet_pivoted_df = pd.pivot_table(sheet_df, values='耗时', index=['用户', '项目'], columns=['活动', '难易度'],
+                                              aggfunc={'耗时': np.sum}, fill_value='', margins=True,
+                                              margins_name='总计')
+            pivoted_df_user = pd.pivot_table(sheet_df, values='耗时', index=['用户'], columns=['活动', '难易度'],
+                                             aggfunc={'耗时': np.sum}, fill_value='', margins=True,
+                                             margins_name='总计')
+            pivoted_df_user.insert(0, '活动', '汇总')  # 插入一列数据
+            usercount=len(pivoted_df_user)+7
+            writer = pd.ExcelWriter(excelName)  # 找到需要写入的excel表格
+            sheet_df.to_excel(writer, 'timeLog', index=False)  # 将数据写入到sheet2中   添加几个sheet,需要重新写几次
+            sheet_pivoted_df.to_excel(writer, 'Summary',startrow=usercount)  # 将数据写入到sheet1中
+            pivoted_df_user.to_excel(writer, 'Summary',startrow=3)  # 将数据写入到sheet2中   添加几个sheet,需要重新写几次
+            pivoted_df_user.to_excel(writer, 'Sheet1',startrow=1)  # 将数据写入到sheet2中   添加几个sheet,需要重新写几次
+            writer.save()  # 保存数据
+            #读取表格
+            oldExcelFile = xlrd.open_workbook(excelName,formatting_info=True)
+            newExcelFile = copy(oldExcelFile)
+            timeSheet = oldExcelFile.sheet_by_name('timeLog')
+            sumSheet = oldExcelFile.sheet_by_name('Summary')
+            #获得复制后的表格工作簿
+            newTimeSh = newExcelFile.get_sheet(0)
+            newSumSh = newExcelFile.get_sheet(1)
+
+            #设置格式timeLog的格式
+            for fm in range(0, timeSheet.nrows):
+                newTimeSh.row(fm).set_style(tall_style)  # 行高
+            newTimeSh.col(0).width = 256 * 38  # 列宽
+            newTimeSh.col(1).width = 256 * 16  # 列宽
+            newTimeSh.col(4).width = 256 * 30  # 列宽
+
+            #设置summary的格式
+            for c in range(2, sumSheet.ncols):
+                newSumSh.col(c).width = 256 * 8  #列宽
+            newSumSh.col(1).width = 256 * 40  #第二列列宽
+            newSumSh.row(0).set_style(fir_tall_style)  # 首行行高
+            for s in range(1, sumSheet.nrows):
+                newSumSh.row(s).set_style(tall_style)   #行高
+
+            newSumSh.remove_merged_ranges(sumSheet.nrows - 2, sumSheet.nrows - 1, 1, 1)
+            newSumSh.remove_merged_ranges(4, 4, sumSheet.ncols - 2, sumSheet.ncols - 1)
+            newSumSh.remove_merged_ranges(usercount+1, usercount+1, sumSheet.ncols - 2, sumSheet.ncols - 1)
+
+            newSumSh.write_merge(3, 4, sumSheet.ncols - 1, sumSheet.ncols - 1, '总计',style2)
+            newSumSh.write_merge(usercount, usercount+1, sumSheet.ncols - 1, sumSheet.ncols - 1, '总计',style2)
+
+            # 设置表头
+            name=excelName.split('\\',3)[3]
+            depart=name[:-4]
+            newSumSh.write_merge(0, 0, 0, sumSheet.ncols - 1,'')
+
+            newSumSh.write(0, 0, depart, style1)
+            newSumSh.write_merge(1, 1, 0, sumSheet.ncols - 1,'')
+            newSumSh.write_merge(2, 4, 0, 1, '人员/汇总', style2)
+            newSumSh.write_merge(usercount, usercount+1, 0, 1, '人员/项目明细', style2)
+
+            newSumSh.write_merge(2, 2, 2, sumSheet.ncols - 1, '活动', style2)
+
+            newExcelFile.save(excelName)
+        except:
+            print(excelName+' 没有数据')
+    #填报缺失人员名单
+    try:
+        missingPerson(PATH,excelNames,newdeparts)
+    except:
+        pass
+
+
+
+

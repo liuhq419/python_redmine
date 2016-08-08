@@ -18,6 +18,10 @@ def setExcelStyle():
     alignment1.horz=xlwt.Alignment.HORZ_LEFT
     alignment1.vert=xlwt.Alignment.VERT_CENTER
 
+    alignment2=xlwt.Alignment()
+    alignment2.horz=xlwt.Alignment.HORZ_LEFT
+    alignment2.vert=xlwt.Alignment.VERT_TOP
+
     #font1的格式为表头 加粗 宋体 16号
     font1 = xlwt.Font()
     font1.name = '宋体'
@@ -27,11 +31,11 @@ def setExcelStyle():
     style1.font = font1
     style1.alignment=alignment
 
-    #font2为 宋体 加粗 11号
+    #font2为 宋体 加粗 10号
     font2 = xlwt.Font()
     font2.name = '宋体'
     font2.bold = True
-    font2.height = 0x00DC  # 字体大小为十六进制转为十进制 除以20   0x00DC=220
+    font2.height = 0x00C8  # 字体大小为十六进制转为十进制 除以20   0x00DC=220
     style2 = xlwt.XFStyle()  # create the style
     style2.font = font2
     style2.alignment=alignment
@@ -41,10 +45,10 @@ def setExcelStyle():
     font3 = xlwt.Font()
     font3.name = '宋体'
     font3.bold = False
-    font3.height = 0x00DC  # 字体大小为十六进制转为十进制 除以30   0x00DC=220
+    font3.height = 0x00C8  # 字体大小为十六进制转为十进制 除以30   0x00DC=220
     style3 = xlwt.XFStyle()  # create the style
     style3.font = font3
-    style3.alignment=alignment  #设置对齐方式
+    style3.alignment=alignment2  #设置对齐方式
 
     style4 = xlwt.XFStyle()  # create the style
     style4.font = font3
@@ -54,7 +58,7 @@ def setExcelStyle():
 #三种不同的格式，公共变量
 style1, style2, style3,style4 = setExcelStyle()
 #行高
-tall_style=xlwt.easyxf('font:height 320;')
+tall_style=xlwt.easyxf('font:height 300;')
 first_tall=xlwt.easyxf('font:height 540;')
 
 
